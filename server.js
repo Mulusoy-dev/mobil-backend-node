@@ -1,9 +1,13 @@
 const express = require('express');
+const app = express();
 const mongoose = require('mongoose');
 const axios = require('axios');
 const cors = require('cors');
+var bodyParser = require('body-parser');
 
-const app = express();
+var urlencodedParser = bodyParser.urlencoded({ extended: false })
+
+
 
 app.use(express.json());
 app.use(cors());
@@ -18,30 +22,53 @@ const port = 5000;
 
 const uri = `mongodb+srv://${username}:${password}@${cluster}/${dbName}`;
 
+const options = {
+  useUnifiedTopology: true,
+  useNewUrlParser: true,
+}
+
+
+mongoose.connect(uri, options)
+  .then(() => {
+    app.listen(port, () => console.log(`Sunucu çalışıyor:http://localhost:${port}`));
+  })
+  .catch(error => console.error('MongoDB bağlantısı sırasında hata:', error));
+
+
+  app.post('/alldata', async (req, res) => {
+    try {
+      const filterValue = req.body.category; // İstemciden gelen kategori
+  
+      const collection = mongoose.connection.collection(dbCollectionName);
+      const docs = await collection.find({}).toArray(); // Tüm verileri çekiyoruz
+  
+      const result = docs.map(doc => {
+        return {
+          _id: doc._id,
+          data: doc[filterValue]
+        }
+      });
+  
+      console.log(result);
+  
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(500).send('Internal Server Error');
+    }
+  });
+
+
 
 app.get('/data', async (req, res) => {
   try {
-    await mongoose.connect(uri, { useUnifiedTopology: true });
-    const db = mongoose.connection;
-    const collection = db.collection(dbCollectionName);
+    const collection = mongoose.connection.collection(dbCollectionName);
     const docs = await collection.find().sort({ _id: -1 }).limit(1).toArray();
     res.send(docs);
-    db.close();
   } catch (err) {
     console.error(err);
     res.status(500).send('Internal Server Error');
   }
 });
 
-app.listen(port, () => console.log(`Sunucu çalışıyor:http://localhost:${port}`));
 
-setInterval(() => {
-  axios.get('http://localhost:5000/data')
-    .then(response => {
-      const data = response.data;
-      console.log('Güncellendi:', data);
-    })
-    .catch(error => {
-      console.log('Veri alınamadı:', error.message);
-    });
-}, 60000);
