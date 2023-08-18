@@ -45,6 +45,7 @@ mongoose.connect(uri, options)
       const result = docs.map(doc => {
         return {
           _id: doc._id,
+          time: doc.modifyTime,
           data: doc[filterValue]
         }
       });
